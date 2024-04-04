@@ -9,9 +9,9 @@ import (
 )
 
 // 内存模式 主题消息队列
-var _ Queue = (*MQueue)(nil)
+var _ Queue = (*mQueue)(nil)
 
-type MQueue struct {
+type mQueue struct {
 	topics
 	wg  sync.WaitGroup
 	mux sync.Mutex
@@ -19,8 +19,8 @@ type MQueue struct {
 	cfg Config
 }
 
-func NewMQueue(opts ...Option) *MQueue {
-	mq := &MQueue{
+func NewMQueue(opts ...Option) *mQueue {
+	mq := &mQueue{
 		topics: make(topics),
 		cfg:    NewConfig(opts...),
 	}
@@ -28,13 +28,13 @@ func NewMQueue(opts ...Option) *MQueue {
 	return mq
 }
 
-func (m *MQueue) AddTopic(topicName string, handle ConsumeHandle, handleErr ConsumeErrHandle) {
+func (m *mQueue) AddTopic(topicName string, handle ConsumeHandle, handleErr ConsumeErrHandle) {
 	if te := m.topics.addTopic(topicName, handle, handleErr); te != nil {
 		te.bchan = make(chan batchEntry, 1)
 	}
 }
 
-func (m *MQueue) Produce(topicName string, ee ...Entry) error {
+func (m *mQueue) Produce(topicName string, ee ...Entry) error {
 	if _, ok := m.topics[topicName]; !ok {
 		return fmt.Errorf("Topic '%s' is not existed", topicName)
 	}
@@ -44,7 +44,7 @@ func (m *MQueue) Produce(topicName string, ee ...Entry) error {
 	return nil
 }
 
-func (m *MQueue) Consume(topicName string) {
+func (m *mQueue) Consume(topicName string) {
 	te, ok := m.topics[topicName]
 	if !ok {
 		return
@@ -59,7 +59,7 @@ func (m *MQueue) Consume(topicName string) {
 	}
 }
 
-func (m *MQueue) Wait() {
+func (m *mQueue) Wait() {
 	m.wg.Wait()
 }
 

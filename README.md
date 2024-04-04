@@ -17,6 +17,7 @@
 - **[kafka模式](./kq.go)**
     kafka接口的简单包装
 
+> Example
 ```go
 // new queue
 // memory
@@ -24,22 +25,23 @@ q := NewMQueue(WithBatchSize(5))
 
 // redis
 // client := rds.NewClient(&rds.Options{Addr: "localhost:6379"})
-// q := NewRdsQueue(conn)
+// q := NewRdsQueue(client, WithBatchSize(5))
 
 // kafka
 // client, err := sarama.NewClient([]string{"127.0.0.1:9092"}, nil)
-// q := NewKfQueue(client, , WithBatchSize(5))
+// q := NewKfQueue(client, WithBatchSize(5))
 
 topicName := "belike"
 q.AddTopic(topicName, func(topicName string, batch batchEntry) error {
     // consume handle
     for _, e := range batch.entries {
-			var i int
-			if err := json.Unmarshal(e.Data.([]byte), &i); err != nil {
-				t.Error(err)
-			}
-			fmt.Printf("%s: %d \n", e.Key, i)
-		}
+        var i int
+        if err := json.Unmarshal(e.Data.([]byte), &i); err != nil {
+            t.Error(err)
+        }
+        fmt.Printf("%s: %d \n", e.Key, i)
+    }
+    fmt.Println("batchSize: ", len(batch.entries))
     return nil
 }, stdHandleErr)
 

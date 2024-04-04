@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -14,9 +15,8 @@ func TestQueue(t *testing.T) {
 			i := e.Data.(int32)
 			count += i
 		}
-
-		return nil
-	}, nil)
+		return fmt.Errorf("[%d] errHandle", count)
+	}, stdHandleErr)
 
 	go q.Consume(topic)
 

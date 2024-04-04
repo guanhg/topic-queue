@@ -13,10 +13,10 @@ import (
 // Produce 使用 内存模式主题消息队列 来缓存消息，等待batchSize的批量消息，依次插入redis.list，key=topicName
 // Consume 每个topic最多从redis缓存batchSize个消息到内存中，等消费完后，再从redis中获取
 
-var _ Queue = (*RdsQueue)(nil)
+var _ Queue = (*rdsQueue)(nil)
 
-type RdsQueue struct {
-	*MQueue
+type rdsQueue struct {
+	*mQueue
 	client *rds.Client
 }
 
@@ -24,26 +24,26 @@ const (
 	rdsInsertBatchTopic string = "rdsInsertBatchTopic"
 )
 
-func NewRdsQueue(client *rds.Client, opts ...Option) *RdsQueue {
-	rq := &RdsQueue{
-		MQueue: NewMQueue(opts...),
+func NewRdsQueue(client *rds.Client, opts ...Option) *rdsQueue {
+	rq := &rdsQueue{
+		mQueue: NewMQueue(opts...),
 		client: client,
 	}
 
 	rq.AddTopic(rdsInsertBatchTopic, rq.insertBatchHandle, stdHandleErr)
-	go rq.MQueue.Consume(rdsInsertBatchTopic)
+	go rq.mQueue.Consume(rdsInsertBatchTopic)
 	return rq
 }
 
-func (r *RdsQueue) Produce(topicName string, ee ...Entry) error {
+func (r *rdsQueue) Produce(topicName string, ee ...Entry) error {
 	var entries []Entry
 	for _, e := range ee {
 		entries = append(entries, Entry{Key: topicName, Data: e.Data})
 	}
-	return r.MQueue.Produce(rdsInsertBatchTopic, entries...)
+	return r.mQueue.Produce(rdsInsertBatchTopic, entries...)
 }
 
-func (r *RdsQueue) insertBatchHandle(topicName string, batch batchEntry) error {
+func (r *rdsQueue) insertBatchHandle(topicName string, batch batchEntry) error {
 	topicKey := batch.entries[0].Key
 	var dts []interface{} = make([]interface{}, 0)
 	for _, e := range batch.entries {
@@ -56,7 +56,7 @@ func (r *RdsQueue) insertBatchHandle(topicName string, batch batchEntry) error {
 	return r.client.LPush(context.TODO(), topicKey, dts...).Err()
 }
 
-func (r *RdsQueue) fetchBatchHandle(topicName string) error {
+func (r *rdsQueue) fetchBatchHandle(topicName string) error {
 	rply, err := r.client.RPop(context.TODO(), topicName).Result()
 	if err != nil {
 		return err
@@ -74,13 +74,13 @@ func (r *RdsQueue) fetchBatchHandle(topicName string) error {
 	return nil
 }
 
-func (r *RdsQueue) Consume(topicName string) {
+func (r *rdsQueue) Consume(topicName string) {
 	_, ok := r.topics[topicName]
 	if !ok {
 		return
 	}
 
-	go r.MQueue.Consume(topicName)
+	go r.mQueue.Consume(topicName)
 
 	for attempt := 0; true; attempt++ {
 		// 没有消息时最多休眠3s

@@ -9,20 +9,22 @@ import (
 )
 
 // kafka 主题消息队列，简单包装kafka接口
-type kafkaQueue struct {
-	*MQueue
+var _ Queue = (*kfQueue)(nil)
+
+type kfQueue struct {
+	*mQueue
 	client   sarama.Client
 	producer sarama.SyncProducer
 }
 
-func NewKfQueue(client sarama.Client, opts ...Option) *kafkaQueue {
-	return &kafkaQueue{
+func NewKfQueue(client sarama.Client, opts ...Option) *kfQueue {
+	return &kfQueue{
 		client: client,
-		MQueue: NewMQueue(opts...),
+		mQueue: NewMQueue(opts...),
 	}
 }
 
-func (k *kafkaQueue) AddTopic(topicName string, handle ConsumeHandle, handleErr ConsumeErrHandle) error {
+func (k *kfQueue) AddTopic(topicName string, handle ConsumeHandle, handleErr ConsumeErrHandle) error {
 	if _, ok := k.topics[topicName]; ok {
 		return nil
 	}
@@ -33,11 +35,11 @@ func (k *kafkaQueue) AddTopic(topicName string, handle ConsumeHandle, handleErr 
 		}
 		k.producer = producer
 	}
-	k.MQueue.AddTopic(topicName, handle, handleErr)
+	k.mQueue.AddTopic(topicName, handle, handleErr)
 	return nil
 }
 
-func (k *kafkaQueue) Produce(topicName string, ee ...Entry) error {
+func (k *kfQueue) Produce(topicName string, ee ...Entry) error {
 	var msg []*sarama.ProducerMessage
 	for _, e := range ee {
 		data, err := json.Marshal(e.Data)
@@ -54,7 +56,7 @@ func (k *kafkaQueue) Produce(topicName string, ee ...Entry) error {
 	return k.producer.SendMessages(msg)
 }
 
-func (k *kafkaQueue) Consume(topicName string) {
+func (k *kfQueue) Consume(topicName string) {
 	_, ok := k.topics[topicName]
 	if !ok {
 		return
@@ -73,7 +75,7 @@ func (k *kafkaQueue) Consume(topicName string) {
 		return
 	}
 
-	go k.MQueue.Consume(topicName)
+	go k.mQueue.Consume(topicName)
 
 	for _, partition := range partitions {
 		pc, err := consumer.ConsumePartition(topicName, partition, k.client.Config().Consumer.Offsets.Initial)
